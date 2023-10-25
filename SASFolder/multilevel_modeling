@@ -1,0 +1,106 @@
+LIBNAME wisc 'C:\ZHANG FILES\1 Teaching\C_EDF6937 Longitudinal Data Analysis\Programming code\introducing multilevel models';
+proc print data=wisc.wiscraw;
+run;
+data wiscraw;
+set wisc.wiscraw;
+run;
+/*sample covariance and correlation matrix*/
+PROC CORR DATA=wiscraw cov;
+        VAR verb1 verb2 verb4 verb6;
+RUN;
+*Examining Means Across Time;
+PROC MEANS DATA=wiscraw;
+        VAR verb1 verb2 verb4 verb6;
+RUN;
+*Converting wide format data (single-record) to long format (multiple-record);
+DATA wiscrawlong;
+        SET wiscraw;
+        id = id; time=1; verb=verb1; perfo=perfo1; momed=momed;  OUTPUT;
+        id = id; time=2; verb=verb2; perfo=perfo2; momed=momed; OUTPUT;
+        id = id; time=4; verb=verb4; perfo=perfo4; momed=momed;  OUTPUT;
+        id = id; time=6; verb=verb6; perfo=perfo6; momed=momed;  OUTPUT;
+        KEEP id time verb momed ;
+RUN;
+
+/*generate a binary variable : if mothers graduated from high school, momgrad=1; otherwise, 0.*/
+data wiscrawlong;
+set wiscrawlong;
+cgrade=time-1; *centering the time variable;
+momgrad=0;
+if momed>=12 then momgrad=1;
+interaction= momgrad*cgrade;
+keep id time cgrade verb momgrad interaction;
+run;
+
+/*unconditional multilevel models*/
+
+/*FMLE with df=Satterthwaite*/
+/*ddfm can also be contain (default), sat, residual, betwithin,or kenwardroger*/
+proc mixed data=wiscrawlong covtest method=ml;
+class id;
+model verb=cgrade/s chisq DDFM=Satterthwaite;
+random intercept cgrade/subject=id type=un solution g v;
+run;
+proc mixed data=wiscrawlong covtest method=ml;
+class id;
+model verb=cgrade/s chisq ;
+random intercept cgrade/subject=id type=un solution g v;
+run;
+
+/*RMLE*/
+proc mixed data=wiscrawlong covtest method=reml;
+class id;
+model verb=cgrade/s chisq;
+random intercept  cgrade/subject=id type=un  g v;
+run;
+
+/*allow negative variance estimates*/
+proc mixed data=wiscrawlong covtest method=ml nobound;
+class id;
+model verb=cgrade/s chisq;
+random intercept  cgrade/subject=id type=un  g v;
+run;
+
+/*robust standard errors*/
+proc mixed data=wiscrawlong covtest method=ml empirical;
+class id;
+model verb=cgrade/s chisq;
+random intercept  cgrade/subject=id type=un  g v;
+run;
+
+
+/*conditional models*/
+/*ML contrasting*/
+proc mixed data=wiscrawlong covtest method=ml;
+class id;
+model verb=cgrade momgrad momgrad*cgrade/s chisq ddfm=contain;
+random intercept cgrade/subject=id type=un  g v;
+estimate 'grade 4 two group means'
+intercept 0 momgrad 1 cgrade 0  momgrad*cgrade 3 ;
+run;
+
+
+/*model 1 with FMLE */
+proc mixed data=wiscrawlong covtest method=ml;
+class id;
+model verb=cgrade/s chisq;
+random intercept cgrade/subject=id type=un solution g v;
+run;
+/*model 1 with RMLE*/
+proc mixed data=wiscrawlong covtest method=reml;
+class id;
+model verb=cgrade/s chisq;
+random intercept cgrade/subject=id type=un solution g v;
+run;
+/*model 2 with RMLE*/
+proc mixed data=wiscrawlong covtest method=reml;
+class id;
+model verb=cgrade/s chisq;
+random intercept/subject=id type=un solution g v;
+run;
+/*model 3 with FMLE*/
+proc mixed data=wiscrawlong covtest method=ml;
+class id;
+model verb= /s chisq;
+random intercept /subject=id type=un solution g v;
+run;
