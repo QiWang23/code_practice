@@ -1,0 +1,592 @@
+Libname chap2 'C:\Courses\C_EDF6937 Longitudinal Data Analysis\Programming code\Exploratory LDA';
+
+/*"data" and "set" are two statements.
+"set" tells SAS which original data set I would like to use here.
+"data" tells SAS which new data set I would like to generate.
+Here the original data set is saved in the folder given by the library directory. The file name is tolerance.
+The new data set is also called tolerance. It is saved in the temporary folder called "work"*/
+
+data work.tolerance;
+set chap2.tolerance;
+run;
+/*when you have your data in an ascii file, you can read in your data using the following code*/
+
+data tolerance1;
+        INFILE 'C:\Courses\C_EDF6937 Longitudinal Data Analysis\2016 fall LDA\Programming code\Exploratory LDA\tolerance.txt';
+        INPUT id tol11 tol12 tol13 tol14 tol15 male exposure;
+RUN;
+
+/* proc print is a statement to tell SAS to print the data set off in the output window. */
+proc print data=tolerance;
+run;
+/***** tolerance is a wide format data set ****/
+*Examining the means and sds across time by using proc means;
+proc means  data=tolerance;
+var tol11 tol12 tol13 tol14 tol15;
+run;
+
+*Examining the means, sds, correlations, and covariances over Time by using proc corr;
+proc corr data=tolerance cov;
+var tol11 tol12 tol13 tol14 tol15;
+run;
+
+/** let's convert the wide format to the long format **/
+/** there are two approaches we can use here **/
+data tolerance_long; /*generate a new data set called "tolerance_long" in the long format*/
+  set tolerance;    /*"tolerance" is the  original  data set in the wide format*/
+  array Atol [11:15] tol11-tol15; /*generate an array "atol"  for those multiple response variables "tol11" to "tol15"*/
+  do age=11 to 15;
+    tol = Atol[age]; /* use a loop to generate the new single longitudinal variable "tol" for those multiple response variables*/
+    time = age - 11; /* generate the time variable (centered)*/
+        output;
+  end;
+  keep id age time tol male exposure;  /*keep those variables in the new data set*/
+run;
+ proc print data=tolerance_long;
+  run;
+
+/*Another more obvious way to convert the wide format to the  long format **/
+/* this method is good for balanced data*/
+
+DATA tolerancelong;      /*generate a new data set called "tolerancelong" in the long format*/
+        SET tolerance;  /*"tolerance" is the original data set in the wide format*/
+        id = id; age=11; time=0; tol=tol11;male=male;exposure=exposure;  OUTPUT; /* for the first occasion;
+        "tol" is the new variable in the long format data set*/
+        id = id; age=12; time=1;tol=tol12; male=male;exposure=exposure; OUTPUT; /*for the second occasion*/
+        id = id; age=13; time=2;tol=tol13;  male=male;exposure=exposure; OUTPUT; /*for the third occasion*/
+        id = id; age= 14; time=3;tol=tol14; male=male;exposure=exposure;  OUTPUT; /*for the fourth occasion*/
+        id = id; age =15; time=4;tol= tol15;male=male;exposure=exposure;  OUTPUT; /*for the fifth occasion*/
+        KEEP id age time tol male exposure;     /*only keep those variables in the new data set*/
+RUN;
+proc print data=tolerancelong;
+run;
+
+/*the class statement is used to tell SAS that I want to obtain group means and sds by age.
+Here age is considered as a categorical variable*/
+proc means data=tolerance_long;
+class age;      /*variable after 'class' is treated as a categorical variable*/
+var tol;
+run;
+
+/** let's convert the long format to the wide format **/
+DATA tolwide;  /*the generated wide format data set is called "tolwide"*/
+SET tolerancelong; /*now the original data format is long*/
+        ARRAY atol[11:15] tol11-tol15;  /*generate an array "atol"  for those multiple response variables "tol11" to "tol15"*/
+        RETAIN tol11-tol15;     /*keep those multiple variables*/
+    BY id; /*do it by id*/
+        IF FIRST.id THEN DO I = 11 to 15;
+                atol[I] = .;
+        END;
+        atol[age] = tol;
+        IF LAST.id THEN OUTPUT; /*use a loop to put values into the array.*/
+        KEEP id tol11-tol15 male exposure;
+RUN;
+proc print data=tolwide;
+run;
+
+
+/*Figure 2.2 , page 25. The first proc greplay deletes all the current graphs in the work directory
+so the naming for the next proc greplay will work properly.
+We also disabled the vertical variable name appeared as specified in the option of label.
+Instead we used title option to make use the facility of moving it to exactly where we want it to be.
+To create Figure 2.2, we actually used proc greplay three times.
+The first time, we create four graphs with four plots on each panel.
+Then we combine the two panels at a time to get two panels with eight plots on each panel.
+In last step, we put together the two panels to get one single graph. */
+
+proc greplay igout = work.gseg nofs;
+  delete _all_;
+run;
+
+/*goptions: graphics options;
+reset=all: resets all the options;
+noborder: no border, can be used for the apa style;
+ftext=titalic: specifies the font for all text on the graphics output to be Serif Bold Italic;
+rotate = portrait: specifies portrait orientation (the graph is higher than it is wide);
+htext=4: specifies the height of the text to be 4. The higher the number is, the larger the text;
+hby=0: specifies the height of BY-line text. If you specify HBY=0, the BY headings are suppressed.
+vsize=7.9: specifies the height of the graphics output area to be 7.9 inches.
+hsize=7: specifies the width of the graphics output area to be 7 inches. */
+
+goptions reset=all noborder ftext=titalic
+         rotate = portrait htext=4 hby=0 vsize=7.9 hsize=7;
+
+/* symbol: specify the appearance of plot symbols and plot lines;
+color=black:  the color of the value is black;
+interpol=none: this is an important item in longitudinal data analysis!!!!!!!
+                     i = none means that we don't want to join the data points and we just want a scatter plot.
+             i = j means that we want to join the data points by straight lines.
+                     i = rl means that we want to plot a fitted linear regression line with the data points here.
+                     i = rq means that we want to plot a fitted quadratic regression line with the data pointshere.
+             i = rc means that we want to plot a fitted cubic regression line with the data points here.
+                     i = spline means that we want to join the data points by nonparametrically smoothed lines.
+value=dot: use dots to represent data points. other choices: diamond, star, plus...
+height =2: affects only the height of the symbols and labels on the plot
+                 */
+symbol color=red interpol=none  value=dot height=2 ;
+
+/*axis1 is used to specify one of the axes;here, no minor scales*/
+axis1 label=('AGE' ) minor=none ;
+/*axis2 is used to specify the other axis;      'order' specifies the scale of that axis*/
+axis2 label = none order=(0 to 4 by 1) minor=none;
+
+/* title is used to specify the title of the graph;
+justify=left: specifies the alignment of the text string; here it is left aligned. Could be right or center aligned
+height=3: specifies the height of text characters in number of units.
+move=(10,01): specify the position of the title. Usually we don't need to use it.
+*/
+title justify = left height=3 move=(10, -1) 'TOL';
+
+/*proc gplot is the main statement to make a graph.
+For longitudinal data plotting, the long format is used.
+uniform specifies that the same axis scaling is used for all graphs that are produced by the procedure.
+*/
+proc gplot data=tolerancelong uniform;
+/*each individual has a plot*/
+  by id;
+ /*add a note to the graph; here add the id number in each graph for identification. It is right aligned here*/
+  note justify=right 'ID #byval(ID)';
+  /*tol is the varible on the y axis; age is the variable on the x axis
+  haxis=axis1: horizontal (X) axis specification comes from axis1;
+vaxis=axis2: vertical (Y) axis specification comes from axis2;
+  */
+  plot tol*age / nolegend haxis=axis1 vaxis=axis2 noframe;
+run;
+quit;
+/* The following codes are used to produce the graph in Figure 2.2 by putting all the individual graphs together.
+You may not need to use this part in your own research */
+/*TC: template catalog*/
+/*http://www.stat.ncsu.edu/sas/samples/graph/templates.html*/
+/*H4        TEMPLATE  4 BOXES ACROSS (HORIZONTALLY)*/
+proc greplay igout=work.gseg tc=sashelp.templt
+             template=h4 nofs;
+   treplay 1:1  2:2  3:3  4:4;
+   treplay 1:5  2:6  3:7  4:8;
+   treplay 1:9  2:10 3:11 4:12;
+   treplay 1:13 2:14 3:15 4:16;
+run;
+quit;
+/*V2        TEMPLATE  1 BOX UP, 1 BOX DOWN   */
+proc greplay igout=work.gseg tc=sashelp.templt
+             template=v2 nofs nobyline;
+   treplay 1:template 2:templat1;
+   treplay 1: templat2 2: templat3;
+  run;
+quit;
+/*V2        TEMPLATE  1 BOX UP, 1 BOX DOWN   */
+proc greplay igout=work.gseg tc=sashelp.templt
+             template=v2 nofs nobyline;
+   treplay 1:templat4 2:templat5;
+run;
+quit;
+
+/***********************exercise 1***********/
+/* *******************join the data points by linear regression lines ?? ********************/
+/***********interpol=join *************/
+
+
+/***********************exercise 2***********/
+/* *******************join the data points by smoothed spline curves ?? ********************/
+/***********interpol=spline *************/
+
+
+
+/**********Another way to make the individual graphs***********/
+/***************join the data points by a linear regression line **************/
+/*******http://support.sas.com/documentation/cdl/en/grstatproc/62603/HTML/default/viewer.htm#sgpanel-stmt.htm */
+
+PROC SORT DATA=tolerancelong;
+by id time;
+run;
+proc sgpanel data=tolerancelong (rename=(tol=Tolerance));
+
+panelby id/columns=4 rows=4;
+scatter x=time y=Tolerance;
+   REG x=time y=Tolerance;
+run;
+
+/***************join the data points by a smoothed lowess curve **************/
+
+PROC SORT DATA=tolerancelong;
+by id time;
+run;
+proc sgpanel data=tolerancelong (rename=(tol=Tolerance));
+
+panelby id/columns=4 rows=4;
+scatter x=time y=Tolerance;
+   LOESS x=time y=Tolerance;
+run;
+
+
+/***************join the data points by a fitted penalized B-spline curve.  **************/
+
+PROC SORT DATA=tolerancelong;
+by id time;
+run;
+proc sgpanel data=tolerancelong (rename=(tol=Tolerance));
+panelby id/columns=4 rows=4;
+scatter x=time y=Tolerance;
+   PBSPLINE x=time y=Tolerance;
+run;
+
+/***************do not join the data points  **************/
+
+PROC SORT DATA=tolerance_long;
+by id time;
+run;
+proc sgpanel data=tolerance_long (rename=(tol=Tolerance));
+
+panelby id/columns=4 rows=4;
+scatter x=time y=Tolerance;
+run;
+
+/*************************************************************************/
+/********************************************************************** /
+/************** The following graph might be useful for you
+because you may want to include it in your paper or your conference presentation
+                  a long format data set is used*********/
+/******************************************************************/
+/*************************************************************************/
+
+
+/***Figure 2.6, page 34  Create average values by age  ****/
+/* Create average values by age */
+proc means data=tolerancelong noprint nway;
+  class age;
+  var tol;
+  output out=one mean= ;
+run;
+proc print data=one;
+run;
+/*add the average values to the long format data set and set the id number to be 9999
+for this 'averge' person here we use 'set' to put all the individuals from two data sets together*/
+ data both;
+  set one tolerancelong;
+  if id = . then ID = 9999;
+  keep age tol id;
+run;
+
+proc print data=both;
+run;
+ proc sort data=both;
+  by id;
+run;
+
+/************************************************/
+/* create a collection of nonparametrically smoothed  trajectories*/
+/************************************************/
+goptions reset=all noborder cback=white ftext=titalic htext=3 ;
+title ' ';
+axis1 label=('AGE') order=(11 to 15 by 1) offset=(0 cm) minor=none ;
+axis2 label=('TOL') order=(0 to 4 by 1) minor=none;
+/*cback:background color*/
+/* for symbo1, repeat=16, this means that symbol1 is used for the first 16 ids*/
+/* for symbo2, repeat=1, this means that symbol1 is used for the 17th id,which is the 'average' person*/
+/* different colors are used to distinguish individual trajectories from the average trajecory*/
+/* here we don't use by id. Instead, we use tol*age=id so that we can include all the trajectories in one plot*/
+/* interpol=spline*/
+/* the data set here is the data set with the 'average' person's scores*/
+proc gplot data=both;
+  symbol1 color=black interpol=spline value=none height=2 repeat=16;
+  symbol2 color=red interpol=spline value=none width=10 repeat=1;
+  plot tol*age=id/nolegend haxis=axis1 vaxis=axis2 noframe;
+run;
+
+/*Create a collection of fitted OLS regression lines over time for Figure 2.6. */
+/* interpol=rl*/
+proc gplot data=both;
+  symbol color=black interpol=rl value=none height=2 repeat=16;
+  symbol2 color=red interpol=rl value=none width=10 repeat=1;
+  plot tol*age=id/nolegend haxis=axis1 vaxis=axis2 noframe;
+run;
+
+/*Create a collection of joined lines over time for Figure 2.6. */
+/* interpol=j*/
+proc gplot data=both;
+  symbol color=black interpol=j value=none height=2 repeat=16;
+  symbol2 color=red interpol=j value=none width=10 repeat=1;
+  plot tol*age=id/nolegend haxis=axis1 vaxis=axis2 noframe;
+run;
+
+
+/*Table 2.2, page 30.
+Title1 'Table 2.2: Results of fitting separate within-person exploratory OLS regression models'; */
+
+/* Estimate a linear regression model for each person*/
+/* The long format data set is used*/
+/*proc reg is the statement in SAS to estimate general regression models
+outseb:  outputs standard errors of the parameter estimates to the OUTEST= data set
+rsquare:  outputs RSQUARE values to the OUTEST= data set
+outest=estbyid: output the parameter estimates and the standard errors to the 'estbyid' file.
+noprint:  do not print out the regression results in the output window */
+
+/* The 'model' statement specifies the form of the fitted regression.
+Here the dependent variable is the 'tol' variable, the independent variable is the 'time' variable, and
+the regression intercept is automatically included in the model.
+'by id' is used  to tell sas that I would like to fit a regression model for each individual seperately
+sometimes you have to sort your data first by id in order to use 'by id' in other statements.
+*/
+proc sort data=tolerance_long;
+by id;
+run;
+proc reg data=tolerance_long outseb rsquare outest=estbyid  noprint;
+  model tol=time;
+  by id;
+run;
+/*take a look at the output data set estbyid*/
+proc print data=estbyid;
+run;
+
+/* clean the output data set to make it more readable
+a new data set called parest_all is generated*/
+data parest_all;
+  set estbyid;
+  by id;
+  retain in_status se_in r_change se_rchange resvar r2;
+  if first.id then do;
+  in_status = intercept; /*in_status: intercept estimate*/
+  r_change = time; /*r_change: slope estimate*/
+  r2 = _rsq_; /*r2: rsquare*/
+  end;
+  if last.id then do;
+  se_in = intercept; /*se_in: intercept standard error*/
+  se_rchange = time; /*se_rchange: slope standard error*/
+  resvar = _rmse_**2; /*resvar: residual variance*/
+  output;
+  end;
+  keep id in_status se_in r_change se_rchange resvar r2;
+run;
+
+/*take a look at the parest_all data set*/
+/*each person has an intercept estimate and a slope  estimate*/
+/*each person has a rsquare and a residual variance from the fitted regression model*/
+proc print data= parest_all;
+run;
+
+/* using the merge statement to combine two data sets into one by id
+here the number of individuals keeps the same. However, in the merged data set, we have more variables*/
+/* the goal here is to add the male and exposure variables into the data set*/
+data exploratory;
+  merge parest_all tolerance;
+  by id;
+  keep id in_status se_in r_change se_rchange resvar r2 male exposure;
+run;
+proc print data=exploratory noobs; /* no obs column*/
+  format _numeric_ 4.2; /*formatting the numerical variables: 4 digits including 2 decimals*/
+  format id 4.0; /*formating the string variable id*/
+run;
+
+/*Figure 2.4, page 31
+title1 'Figure 2.4. Stem and Leaf Plots';
+title2 'for Initial Status, Rate of Change, Resid Variance, and Rsquared'; */
+proc univariate data=exploratory plot ;
+  var in_status r_change resvar r2;
+run;
+
+/*Figure 2.5, page 32.  8*/
+/* *******************interpol=rl ********************/
+/***********display a fitted regression line with the data points*************/
+
+PROC SORT DATA=tolerance_long;
+by id time;
+run;
+proc sgpanel data=tolerance_long (rename=(tol=Tolerance));
+;
+panelby id/columns=4 rows=4;
+scatter x=time y=Tolerance;
+   REG x=time y=Tolerance;
+run;
+
+/*********************************************************/
+/*********************************************************/
+/*Table 2.3, page 37
+Title1 'Table 2.3: Descriptive statistics for the individual growth
+        parameters from separate OLS models'; */
+/* 'exploratory' is the data sets containing all the individual intercepts, slopes, rsquares, and residual variances*/
+proc corr data=exploratory;
+  var in_status r_change;
+run;
+
+/*
+Exploring the relationship between change and time-invariant predictors
+Figure 2.7, page 38. It consists of four plots. We will do the first two plots by gender and the next two by exposure.
+At the end, we use proc greplay to put the four plots together.
+Graphically examining groups of smoothed individual growth trajectories*/
+
+/*Whether the observed trajectories differ by gender
+Whether boys are initially more tolerant of deviant behavior and
+whether they tend to have different annual rate of change
+Whether the observed trajectories differ by early exposure to deviant behavior
+Whether a child�s fitted initial level of tolerance is associated with early exposure
+and whether the fitted rate of change in tolerance is related as well.  */
+
+* The first part for variable male;
+* first compute the means of different occasions for males and females seperately;
+proc means data=tolerance_long noprint nway;
+  class age male ;
+  var tol;
+  output out=gender mean= ;
+run;
+proc print data=gender;
+run;
+/*add the 'average' male and the 'average' female into the data set*/
+data tol_gender;
+  set tolerance_long gender;
+  if id = . then ID = 9999;
+  keep age tol id male;
+run;
+proc sort data=tol_gender;
+  by male id;
+run;
+proc print data=tol_gender;
+run;
+
+proc greplay igout=fig27 nofs;
+  delete _all_;
+run;
+quit;
+goptions reset=all noborder ftext=titalic htext=3 hby=3 ;
+axis1 label=('AGE') order=(11 to 15 by 1) offset=(2 cm) minor=none ;
+axis2 label=('TOL') order=(0 to 4 by 1) minor=none;
+symbol1 color=black interpol=rl value=none height=2 repeat=9;
+symbol2 color=red interpol=rl value=none width=10 repeat=1;
+proc gplot data=tol_gender gout=fig27;
+/*where male=0: only females are included in this plot*/
+  where male = 0;
+  plot tol*age=id/nolegend haxis=axis1 vaxis=axis2 noframe;
+  title 'Girls';
+run;
+quit;
+symbol1 color=black interpol=rl value=none height=2 repeat=7;
+symbol2 color=red interpol=rl value=none width=10 repeat=1;
+proc gplot data=tol_gender gout=fig27;
+/*where male=0: only males are included in this plot*/
+  where male = 1;
+  plot tol*age=id/nolegend haxis=axis1 vaxis=axis2 noframe;
+  title 'Boys';
+run;
+quit;
+*The second part for variable exposure;
+proc means data = tolerance_long median; /*calculating median*/
+  var exposure;
+run;
+data tol_exp;
+   set tolerance_long;
+   hiexp = (exposure >=1.145);
+run;
+proc means data= tol_exp noprint nway;
+  class age hiexp;
+  var tol;
+  output out=loexp mean= ;
+run;
+data tol_exp_all;
+  set  tol_exp loexp;
+  if id = . then ID = 9999;
+  keep age tol id hiexp;
+run;
+proc sort data=tol_exp_all;
+  by hiexp id;
+run;
+symbol1 color=black interpol=rl value=none height=2 repeat=8;
+symbol2 color=red interpol=rl value=none width=10 repeat=1;
+proc gplot data=tol_exp_all gout=fig27;
+  where hiexp = 0;
+  plot tol*age=id/nolegend haxis=axis1 vaxis=axis2 noframe;
+  title 'Low exposure';
+run;
+quit;
+symbol1 color=black interpol=rl value=none height=2 repeat=8;
+symbol2 color=red interpol=rl value=none width=10 repeat=1;
+proc gplot data=tol_exp_all gout=fig27;
+  where hiexp = 1;
+  plot tol*age=id/nolegend haxis=axis1 vaxis=axis2 noframe;
+  title 'High exposure';
+run;
+quit;
+/*Use proc greplay to show the four graphs all as
+one graph using built in template from sashelp.templt called l2r2 . */
+goptions reset=all noborder hby=3 hsize = 0 vsize=0  ;
+proc greplay igout=fig27 tc=sashelp.templt template=l2r2 nofs ;
+  treplay 1:1 2:3 3:2 4:4;
+run;
+quit;
+
+/*************some exploratory analysis on the estimated intercepts and slopes**************/
+proc means data=exploratory;
+class male;
+var  in_status r_change r2;
+run;
+data exploratory1;
+set exploratory;
+hiexp=0;
+if (exposure >=1.145) then hiexp=1;
+run;
+proc means data=exploratory1;
+class hiexp;
+var  in_status r_change r2;
+run;
+
+/********************************************************************/
+/*Figure 2.8, page 40 */
+* The relationship between OLS parameter estimates (intercepts and slopes) and the substantive predictors;
+/*********************************************************************/
+proc greplay  igout = fig28 nofs;
+  delete _all_;;
+run;
+options nolabel;
+proc corr data = exploratory nosimple noprob;
+  var in_status r_change;
+  with male exposure;
+run;
+
+goptions reset=all noborder ftext=titalic htext=3 hby=3 ;
+  axis1 label=("MALE") order=(0 to 1) offset=(2 cm) minor=none ;
+  axis2 label=("EXPOSURE") order=(0 to 2 by 1) minor=none;
+  axis3 label=(a=90 "Fitted Initial Status") order=(.5 to 2.5 by .5) minor=none ;
+  axis4 label=(a=90 "Fitted Rate of Change") order=(-.2 to .8 by .2) minor=none ;
+  symbol1 color=black interpol=none value=dot height=2;
+proc gplot data=exploratory gout=fig28;
+   title move=(80,10) h = 2 'r = 0.01';
+   plot in_status*male     / nolegend haxis=axis1 vaxis=axis3 noframe;
+proc gplot data=exploratory gout=fig28;
+   title move=(80,10) h = 2 'r = 0.23';
+   plot r_change*male      / nolegend haxis=axis1 vaxis=axis4 noframe;
+proc gplot data=exploratory gout=fig28;
+   title move=(80,10) h = 2 'r = 0.19';
+   plot in_status*exposure / nolegend haxis=axis2 vaxis=axis3 noframe;
+proc gplot data=exploratory gout=fig28;
+   title move=(80,10) h = 2 'r = 0.44';
+   plot r_change*exposure  / nolegend haxis=axis2 vaxis=axis4 noframe;
+run;
+quit;
+/*Use proc greplay to show the four graphs all as one graph using built in template from sashelp.templt called l2r2 . */
+
+goptions reset=goptions ;
+proc greplay igout=fig28 tc=sashelp.templt template=l2r2 nofs ;
+  treplay 1:1 2:2 3:3 4:4;
+run;
+quit;
+
+
+
+/*save the wide format data set in an ascii file in your computer */
+DATA _NULL_;
+        SET tolerance;
+        FILE 'C:\Courses\C_EDF6937 Longitudinal Data Analysis\2016 fall LDA\Programming code\Exploratory LDA\tolerance.txt' LINESIZE = 500;
+        PUT (id
+        tol11 tol12 tol13 tol14 tol15 male exposure) (9.2);
+RUN;
+
+
+/*save the long format data set in a sas data file in your computer*/
+data chap2.tollong;
+set work.tolerancelong;
+run;
+
+/*save the long format data set in an ascii data file in your computer*/
+DATA _NULL_;
+        SET tolerancelong;
+        FILE 'C:\Courses\C_EDF6937 Longitudinal Data Analysis\2016 fall LDA\Programming code\Exploratory LDA\tolerancelong.txt' LINESIZE = 500;
+        PUT (id
+        tol male exposure time age) (9.2);
+RUN;
