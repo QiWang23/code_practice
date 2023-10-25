@@ -1,1 +1,1 @@
-# Welcome! This is code for SQL by using SAS.
+# Welcome! This folder is dedicated to SQL implementation in SAS.
