@@ -1,1 +1,1 @@
-# Welcome! This is for SAS code.
+# Welcome! This folder is for SAS code.
