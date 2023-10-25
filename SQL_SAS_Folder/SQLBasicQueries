@@ -1,0 +1,73 @@
+SAS code:
+%let path= /courses/d649d56dba27fe300/STA5067/SAS Data;
+
+/* Read data */
+libname orion "&path/orion";
+
+/* Question 1 */
+/* 1.a */
+proc sql;
+	select * from orion.Employee_Payroll;
+quit;
+
+/* 1.b */
+proc sql;
+	select Employee_ID, Employee_Gender, Marital_Status, Salary from 
+		orion.Employee_Payroll;
+quit;
+
+/* Question 2 */
+proc sql;
+	select Employee_ID, Employee_Gender, Marital_Status, Salary, Salary * 1/3 as 
+		Tax from orion.Employee_Payroll;
+quit;
+
+/* Question 3 */
+proc sql;
+	create table report as select Job_Title, Salary, 
+	case scan(Job_Title, -1, ' ') 
+		when 'Manager' then 'Manager' 
+		when 'Director' then 'Director' 
+		when 'Officer' then 'Executive' 
+		when 'President' then 'Executive' 
+		else 'N/A' 
+		end as Level
+	from orion.Staff;
+quit;
+
+proc sql;
+	create table reportfinal as select Job_Title, Salary, Level,
+	case
+		when Level = 'Manager' AND Salary < 52000 then 'Low'
+		when Level = 'Manager' AND Salary >= 52000 AND Salary <= 72000 then 'Medium'
+		when Level = 'Manager' AND Salary > 72000 then 'High'
+		when Level = 'Director' AND Salary < 108000 then 'Low'
+		when Level = 'Director' AND Salary >= 108000 AND Salary <= 135000 then 'Medium'
+		when Level = 'Director' AND Salary > 135000 then 'High'
+		when Level = 'Executive' AND Salary < 240000 then 'Low'
+		when Level = 'Executive' AND Salary >= 240000 AND Salary <= 300000 then 'Medium'
+		when Level = 'Executive' AND Salary > 300000 then 'High'
+		else 'DO NOT INCLUDE IN THE REPORT.' 
+		end as Salary_Range  
+	from report;
+quit;
+
+/* Question 4 */
+proc sql;
+   title 'Cities Where Employees Live';
+   select distinct City
+   from orion.Employee_Addresses;
+quit;
+
+/* Question 5 */
+proc sql;
+   create table donation as
+   select *
+   from orion.Employee_donations 
+   /* Remove all observations with missing values */
+   where Qtr1 ne . AND Qtr2 ne . AND Qtr3 ne . AND Qtr4 ne .;
+   select Employee_ID, sum(Qtr1, Qtr2, Qtr3, Qtr4) as total, Recipients
+   from donation
+   where calculated total > 90.00;
+   title 'Donations Exceeding $90.00';
+quit;
