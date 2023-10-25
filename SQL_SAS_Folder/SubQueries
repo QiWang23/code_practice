@@ -1,0 +1,156 @@
+%let path= /courses/d649d56dba27fe300/STA5067/SAS Data;
+
+/* Read data */
+libname orion "&path/orion";
+
+/* Question 1.a */
+proc sql;
+   select avg(Quantity) as MeanQuantity
+      from orion.Order_Fact;
+quit;
+
+/* Question 1.b */
+proc sql;
+title "Employees whose Average Quantity Items Sold Exceeds the Company’s Average Items Sold";
+   select Employee_ID, avg(Quantity) as MeanQuantity format = COMMA8.2
+      from orion.Order_Fact
+      group by Employee_ID
+      having avg(Quantity) > 
+          (select avg(Quantity) as MeanQuantity
+             from orion.Order_Fact);
+quit;
+
+/* Question 2.a */
+proc sql;
+title "Employee IDs for February Anniversaries";
+   select Employee_ID 
+      from orion.Employee_Payroll
+      where Employee_ID in 
+         (select Employee_ID
+             from orion.Employee_Payroll
+             where month(Employee_Hire_Date) = 2);
+quit;
+
+/* Question 2.b */
+proc sql;
+title "Employee IDs for February Anniversaries";
+   select Employee_ID,
+          scan(Employee_Name, 2) as Firstname length = 15,
+          scan(Employee_Name, 1) as LastName length = 15
+      from orion.Employee_Addresses
+      where Employee_ID in 
+         (select Employee_ID
+             from orion.Employee_Payroll
+             where month(Employee_Hire_Date) = 2)
+      order by LastName;
+quit;
+title;
+
+/* Question 3 */
+proc sql;
+title "Level I or II Purchasing Agents Who are older than ALL Purchasing Agent IIIs";
+   select Employee_ID,
+          Job_Title, Birth_Date,
+          int(('24Nov2007'd - Birth_Date) / 365.25) as Age
+      from orion.Staff
+      where Job_Title in ("Purchasing Agent I", "Purchasing Agent II")
+            and Birth_Date < all
+         (select Birth_Date
+             from orion.Staff
+             where Job_Title = "Purchasing Agent III");
+quit;
+title;
+
+/* Question 4.a */
+proc sql;
+title "Employee With The Highest Total Sales";
+    select Employee_ID,
+           Total_retail_price*Quantity as Total_Sales  format = dollar11.2
+    from orion.Order_Fact as f
+	where exists
+	  (select Employee_ID 
+	   from orion.Employee_Addresses as a
+	   where a.Employee_ID  =
+	   		   f.Employee_ID)
+	 having calculated Total_Sales = max(calculated Total_Sales);
+quit;
+title;
+
+/* Question 4.b */
+proc sql;
+create table sales as
+    select Employee_ID,
+           Total_retail_price*Quantity as Total_Sales  format = dollar11.2
+    from orion.Order_Fact as f
+	where exists
+	  (select Employee_ID 
+	   from orion.Employee_Addresses as a
+	   where a.Employee_ID  =
+	   		   f.Employee_ID)
+	 having calculated Total_Sales = max(calculated Total_Sales);
+	 title "The Name of The Employee With The Highest Total Sales";
+	 select Employee_ID, 
+       Employee_Name
+     from orion.Employee_Addresses as a
+	 where exists
+	  (select Employee_ID 
+	   from sales as s
+	   where s.Employee_ID  =
+	   		   a.Employee_ID);
+quit;
+
+/* Question 4.c */
+proc sql;
+create table sales as
+    select Employee_ID,
+           Total_retail_price*Quantity as Total_Sales format = dollar11.2
+    from orion.Order_Fact as f
+	where exists
+	  (select Employee_ID 
+	   from orion.Employee_Addresses as a
+	   where a.Employee_ID  =
+	   		   f.Employee_ID)
+	 having calculated Total_Sales = max(calculated Total_Sales);
+	 create table sales2 as 
+	 select Employee_ID, 
+            Employee_Name
+     from orion.Employee_Addresses as a
+	 where exists
+	  (select Employee_ID 
+	   from sales as s
+	   where s.Employee_ID  =
+	   		   a.Employee_ID);
+quit;
+
+data merge_sales;
+merge sales2 sales;
+	by Employee_ID;
+	label Employee_ID = "Employee Identification Number";
+	label Employee_Name = "Employee Name";
+	label Total_sales = "Total sales";
+run;
+proc print data=merge_sales label noobs;run;
+
+/* Question 5 */
+proc sql;
+title "Australian Employees' Birth Months";
+  select Employee_ID,
+         month(Birth_date) as month
+     from orion.Employee_Payroll as p
+     where "AU" = 
+       (select Country
+           from orion.Employee_Addresses as a
+           where p.Employee_ID = a.Employee_ID) 
+     order by calculated month;
+quit;
+
+/* Question 6 */
+proc sql;
+title "Employees With Donations > 0.002 of Their Salary";
+  select Employee_ID, Employee_Gender, Marital_Status
+     from orion.Employee_Payroll as p
+     having Salary*0.002 < 
+       (select sum(Qtr1, Qtr2, Qtr3, Qtr4)
+           from orion.Employee_donations as d
+           where d.Employee_ID = p.Employee_ID);
+quit;
