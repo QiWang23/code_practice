@@ -1,1 +1,1 @@
-# Welcome! This folder includes some python code.
+# Welcome! This folder is for python.
