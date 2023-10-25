@@ -1,0 +1,48 @@
+---
+title: "This is the bacis of Rmarkdown"
+author: Qi Wang
+output: 
+  html_document: 
+    df_print: kable
+date: "2023-10-23"
+---
+
+This is the basics of Rmarkdown.
+
+Show the Rmarkdown in the viewer pane: tools --> global options --> show output preview in: Viewer Pane.
+
+Show the Rmarkdown in an independent window: tools --> global options --> show output preview in: Window.
+
+Show different layers by using different number of "#", for example:
+
+# Header 1
+## Header 2
+### Header 3
+#### Header 4
+##### Header 5
+
+Use "\*.\*" to show Italic, for example, *Header*
+
+Use "\**.\**" to show Bold, for example, **Header**
+
+Use "\***.\***" to show Bold Italic, for example, ***Header***
+
+Use a space between two sentences to start a new paragraph.
+
+Use numbers to indicate different points.
+ 
+1. list item 1
+2. list item 2
+
+Use "- bullet" or "* bullet" to indicate different points. 
+
+- bullet 1
+- bullet 2
+* bullet 3
+* bullet 4
+
+Here is an example for the link: [here is Markdown Basics from Rstudio](https://rmarkdown.rstudio.com/authoring_basics.html)
+
+Here is another example for the link: [here is Markdown tutorial from Rstudio](https://rmarkdown.rstudio.com/lesson-1.html)
+
+Here is another example for the link: [Some practice code from my Github](https://github.com/QiWang23/Rmarkdown)

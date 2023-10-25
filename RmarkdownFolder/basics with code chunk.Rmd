@@ -1,0 +1,61 @@
+---
+title: "Rmarkdown with R code"
+author: Qi Wang
+output: 
+  html_document: 
+    toc: yes
+    number_sections: yes
+date: "2023-10-23"
+---
+
+Create a code chunk to write R code and present code and output. Rmarkdown also can present other languages, e.g., Python
+
+1. Use `install.packages()` to install packages in R. Use `library()` to tell R to load this pacakge. (Use "\`.\`" to indicate functions in the output).
+```{r warning = FALSE}
+# Install packages by using install.packages() function
+install.packages("datasets")
+# Load R package via library() function
+library(datasets)
+# Use data() function to allow users to load datasets from packages for use in their examples
+data(airquality)
+```
+
+2. Check the dataset `airquality`.
+```{r warning = FALSE}
+# Check the first six rows of the dataset airqquality
+head(airquality)
+# Check the last six rows of the dataset airqquality
+tail(airquality)
+```
+
+3. Check sample size and the number of variables of the dataset
+```{r warning = FALSE}
+# Check sample size
+nrow(airquality)
+# Check the number of variables
+ncol(airquality)
+```
+
+4. Check NA in the dataset.
+```{r warning = FALSE, results='hide'}
+# Check NAs in the dataset
+is.na(airquality)
+```
+5. Calculate the number of NAs 
+```{r warning = FALSE}
+# Check NAs in the dataset
+sum(is.na(airquality))
+```
+6. Delete observations which include NAs.
+```{r warning = FALSE}
+# Remove NAs from the dataset
+air.complete <- airquality[!is.na(airquality), ]
+head(air.complete)
+```
+
+7. Draw a plot with the complete data
+```{r warning = FALSE}
+# Check NAs in the dataset
+plot(air.complete$Wind, air.complete$Solar.R, main = "Practice of Airquality",
+    xlab = "wind", ylab = "solar")
+```
